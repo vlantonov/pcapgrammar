@@ -34,7 +34,6 @@ private:
     bool matchPattern(const Pattern& pat, const std::vector<uint8_t>& msg) const;
 
     // Framing overhead for byte offset tracking
-    size_t framingOverhead(size_t msg_len) const;
 
     // helper: read big-endian uint from bytes
     static uint32_t readBigEndian(const uint8_t* data, uint8_t nbytes);

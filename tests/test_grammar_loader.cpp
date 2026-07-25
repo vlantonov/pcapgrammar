@@ -304,3 +304,239 @@ TEST(GrammarLoader, ErrorInvalidYaml) {
     TmpFile tmp("framing: {\nthis is not valid yaml: [[\n");
     EXPECT_THROW(GrammarLoader::load(tmp.path.string()), GrammarError);
 }
+
+// -----------------------------------------------------------------------
+// Gap-closing tests — paths uncovered by the original suite
+// -----------------------------------------------------------------------
+
+// Error: empty / null YAML root (file contains only YAML null "~")
+TEST(GrammarLoader, ErrorEmptyYamlFile) {
+    TmpFile tmp("~");
+    EXPECT_THROW(GrammarLoader::load(tmp.path.string()), GrammarError);
+}
+
+// Error: 'framing' key absent entirely
+TEST(GrammarLoader, ErrorMissingFramingKey) {
+    TmpFile tmp(R"(
+initial_state: s1
+states:
+  - name: s1
+    patterns:
+      - match: "x"
+        type: literal
+        next_states: [s1]
+)");
+    EXPECT_THROW(GrammarLoader::load(tmp.path.string()), GrammarError);
+}
+
+// Error: framing map present but 'type' sub-key missing
+TEST(GrammarLoader, ErrorMissingFramingType) {
+    TmpFile tmp(R"(
+framing:
+  prefix_bytes: 2
+initial_state: s1
+states:
+  - name: s1
+    patterns:
+      - match: "x"
+        type: literal
+        next_states: [s1]
+)");
+    EXPECT_THROW(GrammarLoader::load(tmp.path.string()), GrammarError);
+}
+
+// Optional endian_big flag is loaded for length_prefixed framing
+TEST(GrammarLoader, LengthPrefixedEndianBigOption) {
+    TmpFile tmp(R"(
+framing:
+  type: length_prefixed
+  prefix_bytes: 4
+  endian_big: false
+initial_state: msg
+states:
+  - name: msg
+    patterns:
+      - match: ".*"
+        type: regex
+        next_states:
+          - msg
+)");
+    Grammar g = GrammarLoader::load(tmp.path.string());
+    EXPECT_EQ(g.framing.type, FramingType::LENGTH_PREFIXED);
+    EXPECT_EQ(g.framing.prefix_bytes, 4);
+    EXPECT_FALSE(g.framing.endian_big);
+}
+
+// Error: TLV framing missing 'type_bytes'
+TEST(GrammarLoader, ErrorTlvMissingTypeBytes) {
+    TmpFile tmp(R"(
+framing:
+  type: tlv
+  length_bytes: 2
+initial_state: s1
+states:
+  - name: s1
+    patterns:
+      - match: "x"
+        type: literal
+        next_states: [s1]
+)");
+    EXPECT_THROW(GrammarLoader::load(tmp.path.string()), GrammarError);
+}
+
+// Error: TLV framing missing 'length_bytes'
+TEST(GrammarLoader, ErrorTlvMissingLengthBytes) {
+    TmpFile tmp(R"(
+framing:
+  type: tlv
+  type_bytes: 1
+initial_state: s1
+states:
+  - name: s1
+    patterns:
+      - match: "x"
+        type: literal
+        next_states: [s1]
+)");
+    EXPECT_THROW(GrammarLoader::load(tmp.path.string()), GrammarError);
+}
+
+// Error: TLV 'type_bytes' value > 4 (out of range)
+TEST(GrammarLoader, ErrorTlvTypeBytesOutOfRange) {
+    TmpFile tmp(R"(
+framing:
+  type: tlv
+  type_bytes: 5
+  length_bytes: 2
+initial_state: s1
+states:
+  - name: s1
+    patterns:
+      - match: "x"
+        type: literal
+        next_states: [s1]
+)");
+    EXPECT_THROW(GrammarLoader::load(tmp.path.string()), GrammarError);
+}
+
+// Error: TLV 'length_bytes' value of 0 (out of range)
+TEST(GrammarLoader, ErrorTlvLengthBytesOutOfRange) {
+    TmpFile tmp(R"(
+framing:
+  type: tlv
+  type_bytes: 1
+  length_bytes: 0
+initial_state: s1
+states:
+  - name: s1
+    patterns:
+      - match: "x"
+        type: literal
+        next_states: [s1]
+)");
+    EXPECT_THROW(GrammarLoader::load(tmp.path.string()), GrammarError);
+}
+
+// Error: 'states' key absent entirely
+TEST(GrammarLoader, ErrorMissingStatesKey) {
+    TmpFile tmp(R"(
+framing:
+  type: line
+initial_state: s1
+)");
+    EXPECT_THROW(GrammarLoader::load(tmp.path.string()), GrammarError);
+}
+
+// Error: state entry in the sequence has no 'name'
+TEST(GrammarLoader, ErrorStateMissingName) {
+    TmpFile tmp(R"(
+framing:
+  type: line
+initial_state: s1
+states:
+  - patterns:
+      - match: "x"
+        type: literal
+        next_states: [s1]
+)");
+    EXPECT_THROW(GrammarLoader::load(tmp.path.string()), GrammarError);
+}
+
+// Error: two state entries share the same name
+TEST(GrammarLoader, ErrorDuplicateStateName) {
+    TmpFile tmp(R"(
+framing:
+  type: line
+initial_state: s1
+states:
+  - name: s1
+    patterns:
+      - match: "x"
+        type: literal
+        next_states: [s1]
+  - name: s1
+    patterns:
+      - match: "y"
+        type: literal
+        next_states: [s1]
+)");
+    EXPECT_THROW(GrammarLoader::load(tmp.path.string()), GrammarError);
+}
+
+// Error: state entry has no 'patterns' key
+TEST(GrammarLoader, ErrorStateMissingPatterns) {
+    TmpFile tmp(R"(
+framing:
+  type: line
+initial_state: s1
+states:
+  - name: s1
+)");
+    EXPECT_THROW(GrammarLoader::load(tmp.path.string()), GrammarError);
+}
+
+// Error: pattern entry has no 'match' key
+TEST(GrammarLoader, ErrorPatternMissingMatch) {
+    TmpFile tmp(R"(
+framing:
+  type: line
+initial_state: s1
+states:
+  - name: s1
+    patterns:
+      - type: literal
+        next_states: [s1]
+)");
+    EXPECT_THROW(GrammarLoader::load(tmp.path.string()), GrammarError);
+}
+
+// Error: pattern has an unrecognised type string
+TEST(GrammarLoader, ErrorUnknownPatternType) {
+    TmpFile tmp(R"(
+framing:
+  type: line
+initial_state: s1
+states:
+  - name: s1
+    patterns:
+      - match: "x"
+        type: glob
+        next_states: [s1]
+)");
+    EXPECT_THROW(GrammarLoader::load(tmp.path.string()), GrammarError);
+}
+
+// Error: pattern entry has no 'next_states' key
+TEST(GrammarLoader, ErrorPatternMissingNextStates) {
+    TmpFile tmp(R"(
+framing:
+  type: line
+initial_state: s1
+states:
+  - name: s1
+    patterns:
+      - match: "x"
+        type: literal
+)");
+    EXPECT_THROW(GrammarLoader::load(tmp.path.string()), GrammarError);
+}

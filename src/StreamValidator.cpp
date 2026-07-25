@@ -205,15 +205,6 @@ void StreamValidator::processMessage(const std::vector<uint8_t>& msg) {
 }
 
 void StreamValidator::flush() {
-    // Try to extract any remaining complete messages
-    while (!done_) {
-        auto msg = extractMessage();
-        if (!msg) {
-            break;
-        }
-        processMessage(*msg);
-    }
-
     if (done_) {
         return;
     }
@@ -234,15 +225,4 @@ void StreamValidator::flush() {
     if (on_violation_) {
         on_violation_(v);
     }
-}
-
-size_t StreamValidator::framingOverhead(size_t /*msg_len*/) const {
-    const FramingConfig& fc = grammar_.framing;
-    switch (fc.type) {
-        case FramingType::LINE:            return 1; // \n
-        case FramingType::LENGTH_PREFIXED: return fc.prefix_bytes;
-        case FramingType::TLV:
-            return static_cast<size_t>(fc.type_bytes) + static_cast<size_t>(fc.length_bytes);
-    }
-    return 0;
 }

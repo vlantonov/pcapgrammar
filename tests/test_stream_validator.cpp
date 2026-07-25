@@ -336,3 +336,152 @@ TEST(StreamValidator, VerboseModeOnMatchFires) {
     EXPECT_EQ(h.matchCount(), 1u);
     EXPECT_EQ(h.matches[0].pattern_str, "HELLO");
 }
+
+// -----------------------------------------------------------------------
+// Gap-closing tests — paths uncovered by the original suite
+// -----------------------------------------------------------------------
+
+// FR-14 (line framing): \r\n terminator — the \r must be stripped before matching
+TEST(StreamValidator, CrlfLineTerminationStripped) {
+    Harness h(buildHelloGrammar());
+    std::string crlf = "HELLO\r\n";
+    h.feedRaw(reinterpret_cast<const uint8_t*>(crlf.data()), crlf.size());
+    h.flush();
+    EXPECT_EQ(h.violationCount(), 0u);  // \r stripped, "HELLO" matches
+}
+
+// LENGTH_PREFIXED: only 1 byte arrives when 2-byte prefix expected → no message yet
+TEST(StreamValidator, LengthPrefixedPartialPrefix) {
+    Grammar g;
+    g.framing.type         = FramingType::LENGTH_PREFIXED;
+    g.framing.prefix_bytes = 2;
+    g.initial_state = "msg";
+    State s; s.name = "msg";
+    Pattern p; p.match_str = ".*"; p.ptype = PatternType::REGEX;
+    p.compiled = std::regex(".*", std::regex::extended);
+    p.next_states = {"msg"};
+    s.patterns.push_back(std::move(p));
+    g.states["msg"] = std::move(s);
+
+    FlowKey fk{};
+    std::vector<Violation> viols;
+    std::vector<MatchInfo> matches;
+    StreamValidator sv(g, fk,
+        [&](const Violation& v){ viols.push_back(v); },
+        [&](const MatchInfo& m){ matches.push_back(m); });
+
+    std::vector<uint8_t> partial{0x00};  // only 1 of 2 prefix bytes
+    sv.consume(partial.data(), partial.size());
+    EXPECT_EQ(viols.size(), 0u);
+    EXPECT_EQ(matches.size(), 0u);  // message not yet extractable
+}
+
+// LENGTH_PREFIXED: prefix complete (claims 10 bytes) but only 3 body bytes arrive
+TEST(StreamValidator, LengthPrefixedPartialBody) {
+    Grammar g;
+    g.framing.type         = FramingType::LENGTH_PREFIXED;
+    g.framing.prefix_bytes = 2;
+    g.initial_state = "msg";
+    State s; s.name = "msg";
+    Pattern p; p.match_str = ".*"; p.ptype = PatternType::REGEX;
+    p.compiled = std::regex(".*", std::regex::extended);
+    p.next_states = {"msg"};
+    s.patterns.push_back(std::move(p));
+    g.states["msg"] = std::move(s);
+
+    FlowKey fk{};
+    std::vector<Violation> viols;
+    std::vector<MatchInfo> matches;
+    StreamValidator sv(g, fk,
+        [&](const Violation& v){ viols.push_back(v); },
+        [&](const MatchInfo& m){ matches.push_back(m); });
+
+    // prefix = 0x000A (10 bytes needed), but only 3 body bytes provided
+    std::vector<uint8_t> partial{0x00, 0x0A, 'A', 'B', 'C'};
+    sv.consume(partial.data(), partial.size());
+    EXPECT_EQ(viols.size(), 0u);
+    EXPECT_EQ(matches.size(), 0u);  // incomplete message stays in buffer
+}
+
+// FR-22: non-printable bytes in a violating message are shown as '.' in the excerpt
+TEST(StreamValidator, NonPrintableBytesInExcerpt) {
+    SimpleGrammar sg;
+    sg.addState("start", "NOPE", PatternType::LITERAL, {"__end__"});
+    Harness h(sg.g);
+
+    // Line containing a NUL and a control byte; no pattern matches → violation
+    std::vector<uint8_t> raw{'H', 0x00, 0x01, 'i', '\n'};
+    h.feedRaw(raw.data(), raw.size());
+    ASSERT_EQ(h.violationCount(), 1u);
+    EXPECT_NE(h.violations[0].message_excerpt.find('.'), std::string::npos);
+}
+
+// FR-23: stream ending in an allow_eof state must NOT produce a premature-EOF violation
+TEST(StreamValidator, FlushInAllowEofStateNoViolation) {
+    // "loop" greedily stays in "loop" (first next_state), but allow_eof=true
+    // so flush() should take the early-return branch without emitting a violation.
+    SimpleGrammar sg;
+    sg.addState("loop", ".*", PatternType::REGEX, {"loop"});
+    sg.g.initial_state = "loop";        // override SimpleGrammar default "start"
+    sg.g.states["loop"].allow_eof = true;
+    Harness h(sg.g);
+
+    h.feed("anything");   // stays in "loop", done_=false
+    h.flush();            // buffer empty; done_=false; allow_eof=true → no violation
+    EXPECT_EQ(h.violationCount(), 0u);
+}
+
+// TLV: only 2 bytes arrive when 3-byte header (type=1 + length=2) expected
+TEST(StreamValidator, TlvPartialHeader) {
+    Grammar g;
+    g.framing.type         = FramingType::TLV;
+    g.framing.type_bytes   = 1;
+    g.framing.length_bytes = 2;  // header_size = 3
+    g.initial_state = "msg";
+    State s; s.name = "msg";
+    Pattern p; p.match_str = ".*"; p.ptype = PatternType::REGEX;
+    p.compiled = std::regex(".*", std::regex::extended);
+    p.next_states = {"msg"};
+    s.patterns.push_back(std::move(p));
+    g.states["msg"] = std::move(s);
+
+    FlowKey fk{};
+    std::vector<Violation> viols;
+    std::vector<MatchInfo> matches;
+    StreamValidator sv(g, fk,
+        [&](const Violation& v){ viols.push_back(v); },
+        [&](const MatchInfo& m){ matches.push_back(m); });
+
+    std::vector<uint8_t> partial{0x01, 0x00};  // 2 bytes < 3-byte header
+    sv.consume(partial.data(), partial.size());
+    EXPECT_EQ(viols.size(), 0u);
+    EXPECT_EQ(matches.size(), 0u);
+}
+
+// TLV: header complete (claiming 10-byte body) but only 3 body bytes provided
+TEST(StreamValidator, TlvPartialBody) {
+    Grammar g;
+    g.framing.type         = FramingType::TLV;
+    g.framing.type_bytes   = 1;
+    g.framing.length_bytes = 1;  // header_size = 2
+    g.initial_state = "msg";
+    State s; s.name = "msg";
+    Pattern p; p.match_str = ".*"; p.ptype = PatternType::REGEX;
+    p.compiled = std::regex(".*", std::regex::extended);
+    p.next_states = {"msg"};
+    s.patterns.push_back(std::move(p));
+    g.states["msg"] = std::move(s);
+
+    FlowKey fk{};
+    std::vector<Violation> viols;
+    std::vector<MatchInfo> matches;
+    StreamValidator sv(g, fk,
+        [&](const Violation& v){ viols.push_back(v); },
+        [&](const MatchInfo& m){ matches.push_back(m); });
+
+    // type=0x01, length=10, but only 3 body bytes follow
+    std::vector<uint8_t> partial{0x01, 0x0A, 'A', 'B', 'C'};
+    sv.consume(partial.data(), partial.size());
+    EXPECT_EQ(viols.size(), 0u);
+    EXPECT_EQ(matches.size(), 0u);
+}

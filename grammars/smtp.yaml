@@ -1,0 +1,91 @@
+name: "SMTP Control Channel"
+framing:
+  type: line
+initial_state: greeting
+states:
+  - name: greeting
+    patterns:
+      - match: "^220 .*$"
+        type: regex
+        next_states:
+          - ehlo
+  - name: ehlo
+    patterns:
+      - match: "^(EHLO|HELO) .*$"
+        type: regex
+        next_states:
+          - ehlo_response
+  - name: ehlo_response
+    patterns:
+      - match: "^250-.*$"
+        type: regex
+        next_states:
+          - ehlo_response
+      - match: "^250 .*$"
+        type: regex
+        next_states:
+          - mail_from
+  - name: mail_from
+    patterns:
+      - match: "^MAIL FROM:.*$"
+        type: regex
+        next_states:
+          - mail_from_response
+      - match: "^QUIT$"
+        type: literal
+        next_states:
+          - quit_response
+  - name: mail_from_response
+    patterns:
+      - match: "^250 .*$"
+        type: regex
+        next_states:
+          - rcpt_to
+  - name: rcpt_to
+    patterns:
+      - match: "^RCPT TO:.*$"
+        type: regex
+        next_states:
+          - rcpt_to_response
+  - name: rcpt_to_response
+    patterns:
+      - match: "^250 .*$"
+        type: regex
+        next_states:
+          - rcpt_to
+          - data_cmd
+  - name: data_cmd
+    patterns:
+      - match: "^DATA$"
+        type: literal
+        next_states:
+          - data_response
+  - name: data_response
+    patterns:
+      - match: "^354 .*$"
+        type: regex
+        next_states:
+          - data_body
+  - name: data_body
+    patterns:
+      - match: "^\\.$"
+        type: regex
+        next_states:
+          - data_end_response
+      - match: ".*"
+        type: regex
+        next_states:
+          - data_body
+  - name: data_end_response
+    patterns:
+      - match: "^250 .*$"
+        type: regex
+        next_states:
+          - mail_from
+          - quit_response
+  - name: quit_response
+    patterns:
+      - match: "^221 .*$"
+        type: regex
+        next_states:
+          - __end__

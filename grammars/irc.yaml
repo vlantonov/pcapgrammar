@@ -1,0 +1,44 @@
+name: "IRC (RFC 1459)"
+framing:
+  type: line
+initial_state: connected
+states:
+  - name: connected
+    patterns:
+      - match: "^(NICK|USER) .*$"
+        type: regex
+        next_states:
+          - connected
+          - registered
+      - match: "^:[^ ]+ [0-9]+ .*$"
+        type: regex
+        next_states:
+          - registered
+  - name: registered
+    patterns:
+      - match: "^JOIN .*$"
+        type: regex
+        next_states:
+          - channel_joined
+      - match: "^(PING|PONG|PRIVMSG|NOTICE|PART|QUIT|MODE|WHO|WHOIS|LIST).*$"
+        type: regex
+        next_states:
+          - registered
+          - __end__
+      - match: "^:[^ ]+ .*$"
+        type: regex
+        next_states:
+          - registered
+  - name: channel_joined
+    patterns:
+      - match: "^(PRIVMSG|NOTICE|PART|QUIT|MODE|PING|PONG|JOIN|NAMES|TOPIC).*$"
+        type: regex
+        next_states:
+          - channel_joined
+          - registered
+          - __end__
+      - match: "^:[^ ]+ .*$"
+        type: regex
+        next_states:
+          - channel_joined
+          - registered

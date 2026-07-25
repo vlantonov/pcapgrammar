@@ -1,0 +1,22 @@
+name: "HTTP/1.1 Request"
+framing:
+  type: line
+initial_state: request_line
+states:
+  - name: request_line
+    patterns:
+      - match: "^(GET|POST|PUT|DELETE|HEAD|OPTIONS|PATCH|CONNECT|TRACE) .+ HTTP/1\\.[01]$"
+        type: regex
+        next_states:
+          - header_field
+  - name: header_field
+    patterns:
+      - match: ""
+        type: literal
+        next_states:
+          - request_line
+          - __end__
+      - match: "^[A-Za-z0-9!#$%&'*+.^_`|~-]+:.*$"
+        type: regex
+        next_states:
+          - header_field

@@ -1,0 +1,15 @@
+/home/vladiant/Workplace/pcapgrammar/build/CMakeFiles/test.dir
+/home/vladiant/Workplace/pcapgrammar/build/CMakeFiles/edit_cache.dir
+/home/vladiant/Workplace/pcapgrammar/build/CMakeFiles/rebuild_cache.dir
+/home/vladiant/Workplace/pcapgrammar/build/src/CMakeFiles/pcapgrammar_lib.dir
+/home/vladiant/Workplace/pcapgrammar/build/src/CMakeFiles/pcapgrammar.dir
+/home/vladiant/Workplace/pcapgrammar/build/src/CMakeFiles/test.dir
+/home/vladiant/Workplace/pcapgrammar/build/src/CMakeFiles/edit_cache.dir
+/home/vladiant/Workplace/pcapgrammar/build/src/CMakeFiles/rebuild_cache.dir
+/home/vladiant/Workplace/pcapgrammar/build/tests/CMakeFiles/test_grammar_loader.dir
+/home/vladiant/Workplace/pcapgrammar/build/tests/CMakeFiles/test_stream_validator.dir
+/home/vladiant/Workplace/pcapgrammar/build/tests/CMakeFiles/test_tcp_reassembler.dir
+/home/vladiant/Workplace/pcapgrammar/build/tests/CMakeFiles/test_reporter.dir
+/home/vladiant/Workplace/pcapgrammar/build/tests/CMakeFiles/test.dir
+/home/vladiant/Workplace/pcapgrammar/build/tests/CMakeFiles/edit_cache.dir
+/home/vladiant/Workplace/pcapgrammar/build/tests/CMakeFiles/rebuild_cache.dir

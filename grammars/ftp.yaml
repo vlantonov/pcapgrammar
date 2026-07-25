@@ -1,0 +1,59 @@
+name: "FTP Control Channel"
+framing:
+  type: line
+initial_state: greeting
+states:
+  - name: greeting
+    patterns:
+      - match: "^220.*$"
+        type: regex
+        next_states:
+          - logged_out
+  - name: logged_out
+    patterns:
+      - match: "^USER .*$"
+        type: regex
+        next_states:
+          - user_response
+      - match: "^QUIT$"
+        type: literal
+        next_states:
+          - __end__
+  - name: user_response
+    patterns:
+      - match: "^331 .*$"
+        type: regex
+        next_states:
+          - pass_cmd
+      - match: "^230 .*$"
+        type: regex
+        next_states:
+          - logged_in
+  - name: pass_cmd
+    patterns:
+      - match: "^PASS .*$"
+        type: regex
+        next_states:
+          - pass_response
+  - name: pass_response
+    patterns:
+      - match: "^230 .*$"
+        type: regex
+        next_states:
+          - logged_in
+      - match: "^530 .*$"
+        type: regex
+        next_states:
+          - logged_out
+  - name: logged_in
+    patterns:
+      - match: "^(LIST|RETR|STOR|PWD|CWD|MKD|DELE|PASV|PORT|TYPE|QUIT).*$"
+        type: regex
+        next_states:
+          - logged_in
+          - __end__
+      - match: "^[1-5][0-9][0-9].*$"
+        type: regex
+        next_states:
+          - logged_in
+          - __end__

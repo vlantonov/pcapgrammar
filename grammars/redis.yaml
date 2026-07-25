@@ -1,0 +1,48 @@
+name: "Redis RESP"
+framing:
+  type: line
+initial_state: idle
+states:
+  - name: idle
+    patterns:
+      - match: "^\\*[0-9]+$"
+        type: regex
+        next_states:
+          - bulk_len
+      - match: "^\\+.*$"
+        type: regex
+        next_states:
+          - idle
+          - __end__
+      - match: "^-.*$"
+        type: regex
+        next_states:
+          - idle
+          - __end__
+      - match: "^:[0-9-]+$"
+        type: regex
+        next_states:
+          - idle
+          - __end__
+      - match: "^\\$[0-9]+$"
+        type: regex
+        next_states:
+          - bulk_data
+      - match: "^[A-Z][A-Z0-9 ]*$"
+        type: regex
+        next_states:
+          - idle
+          - __end__
+  - name: bulk_len
+    patterns:
+      - match: "^\\$[0-9]+$"
+        type: regex
+        next_states:
+          - bulk_data
+  - name: bulk_data
+    patterns:
+      - match: ".*"
+        type: regex
+        next_states:
+          - bulk_len
+          - idle

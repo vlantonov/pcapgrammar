@@ -1,0 +1,11 @@
+[requires]
+libpcap/1.10.4
+yaml-cpp/0.8.0
+gtest/1.14.0
+
+[generators]
+CMakeDeps
+CMakeToolchain
+
+[options]
+gtest/*:shared=False

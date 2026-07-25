@@ -14,7 +14,18 @@ else()
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(LIBPCAP REQUIRED libpcap)
     find_package(yaml-cpp REQUIRED)
-    find_package(GTest REQUIRED)
+
+    # GoogleTest via FetchContent — no system package required.
+    # Conan path (PCAPGRAMMAR_USE_CONAN=ON) is for offline/corporate environments.
+    include(FetchContent)
+    FetchContent_Declare(
+        googletest
+        GIT_REPOSITORY https://github.com/google/googletest.git
+        GIT_TAG        v1.14.0
+    )
+    set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
+    set(BUILD_GMOCK   OFF CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(googletest)
 endif()
 
 enable_testing()

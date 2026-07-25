@@ -1,0 +1,44 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    # Needed by softprops/action-gh-release to create/upload release assets
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libpcap-dev \
+            libyaml-cpp-dev \
+            cmake \
+            g++ \
+            pkg-config
+
+      - name: Configure CMake
+        run: cmake -B build -DPCAPGRAMMAR_USE_CONAN=OFF -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      # Tests must pass before any artifact is published
+      - name: Test
+        run: cd build && ctest --output-on-failure
+
+      - name: Package binary
+        run: tar czf pcapgrammar-linux-x86_64.tar.gz -C build/src pcapgrammar
+
+      - name: Upload release artifact
+        uses: softprops/action-gh-release@v2
+        with:
+          files: pcapgrammar-linux-x86_64.tar.gz

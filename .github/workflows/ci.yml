@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:        # all branches
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  # ── Primary job: configure → build → test ─────────────────────────────────
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # System libraries (GoogleTest pulled via FetchContent at configure time)
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libpcap-dev \
+            libyaml-cpp-dev \
+            cmake \
+            g++ \
+            pkg-config
+
+      # FetchContent downloads GoogleTest here; requires outbound HTTPS
+      - name: Configure CMake
+        run: cmake -B build -DPCAPGRAMMAR_USE_CONAN=OFF -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Test
+        run: cd build && ctest --output-on-failure
+
+  # ── Optional lint job: never blocks the build ─────────────────────────────
+  lint:
+    runs-on: ubuntu-latest
+    continue-on-error: true  # informational only — never fails the pipeline
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install cppcheck
+        run: sudo apt-get update && sudo apt-get install -y cppcheck
+
+      - name: Run cppcheck
+        run: cppcheck --error-exitcode=1 src/

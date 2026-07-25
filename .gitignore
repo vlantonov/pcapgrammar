@@ -1,0 +1,11 @@
+# CMake build directories
+build/
+build-*/
+
+# Coverage artefacts
+*.gcda
+*.gcno
+*.gcov
+coverage_html/
+coverage.info
+coverage_filtered.info

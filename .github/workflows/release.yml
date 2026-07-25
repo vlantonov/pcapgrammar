@@ -15,6 +15,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Clean build directory
+        run: rm -rf build
+
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -26,7 +29,7 @@ jobs:
             pkg-config
 
       - name: Configure CMake
-        run: cmake -B build -DPCAPGRAMMAR_USE_CONAN=OFF -DCMAKE_BUILD_TYPE=Release
+        run: cmake -S . -B build -DPCAPGRAMMAR_USE_CONAN=OFF -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
         run: cmake --build build --parallel

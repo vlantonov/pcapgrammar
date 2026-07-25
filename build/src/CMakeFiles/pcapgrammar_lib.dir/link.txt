@@ -1,2 +1,0 @@
-/usr/bin/ar qc libpcapgrammar_lib.a CMakeFiles/pcapgrammar_lib.dir/GrammarLoader.cpp.o CMakeFiles/pcapgrammar_lib.dir/PcapReader.cpp.o CMakeFiles/pcapgrammar_lib.dir/TcpReassembler.cpp.o CMakeFiles/pcapgrammar_lib.dir/FlowTracker.cpp.o CMakeFiles/pcapgrammar_lib.dir/StreamValidator.cpp.o CMakeFiles/pcapgrammar_lib.dir/Reporter.cpp.o
-/usr/bin/ranlib libpcapgrammar_lib.a

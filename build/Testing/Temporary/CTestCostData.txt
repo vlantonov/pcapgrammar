@@ -1,5 +1,0 @@
-grammar_loader 1 0.00456594
-stream_validator 1 0.00281168
-tcp_reassembler 1 0.00304512
-reporter 1 0.00259219
----

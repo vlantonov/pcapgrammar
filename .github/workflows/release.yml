@@ -13,7 +13,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Clean build directory
         run: rm -rf build
@@ -42,6 +42,6 @@ jobs:
         run: tar czf pcapgrammar-linux-x86_64.tar.gz -C build/src pcapgrammar
 
       - name: Upload release artifact
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: pcapgrammar-linux-x86_64.tar.gz
